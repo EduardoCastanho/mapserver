@@ -45,26 +45,33 @@ extern "C" {
 /*
 ** Misc. defines
 */
-#define MS_DEFAULT_CGI_PARAMS 100
+#define MS_CGI_DEFAULT_MAXPARAMS 100
 
-enum MS_REQUEST_TYPE {MS_GET_REQUEST, MS_POST_REQUEST};
+enum MS_CGI_REQUEST_TYPE { MS_CGI_REQUEST_GET, MS_CGI_REQUEST_POST };
+enum MS_CGI_PARAM_SOURCE { MS_CGI_PARAM_SOURCE_UNKNOWN, MS_CGI_PARAM_SOURCE_GET, MS_CGI_PARAM_SOURCE_POST, MS_CGI_PARAM_SOURCE_COOKIE }; 
+
+/* structure to hold a request parameter */
+typedef struct {
+  char *name;
+  char *value;
+  enum MS_CGI_PARAM_SOURCE source;
+} cgiParamObj;
 
 /* structure to hold request information */
 typedef struct {
 #ifndef SWIG
-  char **ParamNames;
-  char **ParamValues;
+  cgiParamObj *params;
 #endif
 
 #ifdef SWIG
   %immutable;
 #endif
-  int NumParams;
+  int numparams;
 #ifdef SWIG
   %mutable;
 #endif
 
-  enum MS_REQUEST_TYPE type;
+  enum MS_CGI_REQUEST_TYPE type;
   char *contenttype;
 
   char *postrequest;

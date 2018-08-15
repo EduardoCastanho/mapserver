@@ -36,8 +36,6 @@
 #include "mapserver.h"
 #include "cgiutil.h"
 
-
-
 #define LF 10
 #define CR 13
 
@@ -122,7 +120,7 @@ int loadParams(cgiRequestObj *request,
   register int x,m=0;
   char *s, *queryString = NULL, *httpCookie = NULL;
   int debuglevel;
-  int maxParams = MS_DEFAULT_CGI_PARAMS;
+  int maxParams = MS_CGI_DEFAULT_MAXPARAMS;
 
   if (getenv2==NULL)
     getenv2 = &msGetEnv;
@@ -139,7 +137,7 @@ int loadParams(cgiRequestObj *request,
   if(strcmp(getenv2("REQUEST_METHOD", thread_context),"POST") == 0) { /* we've got a post from a form */
     char *post_data;
     int data_len;
-    request->type = MS_POST_REQUEST;
+    request->type = MS_CGI_REQUEST_POST;
 
     s = getenv2("CONTENT_TYPE", thread_context);
     if (s != NULL)
@@ -167,13 +165,13 @@ int loadParams(cgiRequestObj *request,
       while( post_data[0] ) {
         if(m >= maxParams) {
           maxParams *= 2;
-          request->ParamNames = (char **) msSmallRealloc(request->ParamNames,sizeof(char *) * maxParams);
-          request->ParamValues = (char **) msSmallRealloc(request->ParamValues,sizeof(char *) * maxParams);
+          request->params = (cgiParamObj *) msSmallRealloc(request->params, sizeof(cgiParamObj) * maxParams);
         }
-        request->ParamValues[m] = makeword(post_data,'&');
-        plustospace(request->ParamValues[m]);
-        unescape_url(request->ParamValues[m]);
-        request->ParamNames[m] = makeword(request->ParamValues[m],'=');
+        request->params[m].value = makeword(post_data,'&');
+        plustospace(request->params[m].value);
+        unescape_url(request->params[m].value);
+        request->params[m].name = makeword(request->params[m].value,'=');
+        request->params[m].source = MS_CGI_PARAM_SOURCE_POST;
         m++;
       }
       free( post_data );
@@ -191,19 +189,19 @@ int loadParams(cgiRequestObj *request,
       for(x=0; queryString[0] != '\0'; x++) {
         if(m >= maxParams) {
           maxParams *= 2;
-          request->ParamNames = (char **) msSmallRealloc(request->ParamNames,sizeof(char *) * maxParams);
-          request->ParamValues = (char **) msSmallRealloc(request->ParamValues,sizeof(char *) * maxParams);
+          request->params = (cgiParamObj *) msSmallRealloc(request->params, sizeof(cgiParamObj) * maxParams);
         }
-        request->ParamValues[m] = makeword(queryString,'&');
-        plustospace(request->ParamValues[m]);
-        unescape_url(request->ParamValues[m]);
-        request->ParamNames[m] = makeword(request->ParamValues[m],'=');
+        request->params[m].value = makeword(queryString,'&');
+        plustospace(request->params[m].value);
+        unescape_url(request->params[m].value);
+        request->params[m].name = makeword(request->params[m].value,'=');
+        request->params[m].source = MS_CGI_PARAM_SOURCE_GET;
         m++;
       }
     }
   } else {
     if(strcmp(getenv2("REQUEST_METHOD", thread_context),"GET") == 0) { /* we've got a get request */
-      request->type = MS_GET_REQUEST;
+      request->type = MS_CGI_REQUEST_GET;
 
       s = getenv2("QUERY_STRING", thread_context);
       if(s == NULL) {
@@ -228,13 +226,13 @@ int loadParams(cgiRequestObj *request,
       for(x=0; queryString[0] != '\0'; x++) {
         if(m >= maxParams) {
           maxParams *= 2;
-          request->ParamNames = (char **) msSmallRealloc(request->ParamNames,sizeof(char *) * maxParams);
-          request->ParamValues = (char **) msSmallRealloc(request->ParamValues,sizeof(char *) * maxParams);
+	  request->params = (cgiParamObj *) msSmallRealloc(request->params, sizeof(cgiParamObj) * maxParams);
         }
-        request->ParamValues[m] = makeword(queryString,'&');
-        plustospace(request->ParamValues[m]);
-        unescape_url(request->ParamValues[m]);
-        request->ParamNames[m] = makeword(request->ParamValues[m],'=');
+        request->params[m].value = makeword(queryString,'&');
+        plustospace(request->params[m].value);
+        unescape_url(request->params[m].value);
+        request->params[m].name = makeword(request->params[m].value,'=');
+	request->params[m].source = MS_CGI_PARAM_SOURCE_GET;
         m++;
       }
     } else {
@@ -253,13 +251,13 @@ int loadParams(cgiRequestObj *request,
     for(x=0; httpCookie[0] != '\0'; x++) {
       if(m >= maxParams) {
         maxParams *= 2;
-        request->ParamNames = (char **) msSmallRealloc(request->ParamNames,sizeof(char *) * maxParams);
-        request->ParamValues = (char **) msSmallRealloc(request->ParamValues,sizeof(char *) * maxParams);
+	request->params = (cgiParamObj *) msSmallRealloc(request->params, sizeof(cgiParamObj) * maxParams);
       }
-      request->ParamValues[m] = makeword(httpCookie,';');
-      plustospace(request->ParamValues[m]);
-      unescape_url(request->ParamValues[m]);
-      request->ParamNames[m] = makeword_skip(request->ParamValues[m],'=',' ');
+      request->params[m].value = makeword(httpCookie,';');
+      plustospace(request->params[m].value);
+      unescape_url(request->params[m].value);
+      request->params[m].name = makeword_skip(request->params[m].value,'=',' ');
+      request->params[m].source = MS_CGI_PARAM_SOURCE_COOKIE;
       m++;
     }
   }
@@ -438,10 +436,9 @@ cgiRequestObj *msAllocCgiObj()
   if(!request)
     return NULL;
 
-  request->ParamNames = (char **) msSmallMalloc(MS_DEFAULT_CGI_PARAMS*sizeof(char*));
-  request->ParamValues = (char **) msSmallMalloc(MS_DEFAULT_CGI_PARAMS*sizeof(char*));
-  request->NumParams = 0;
-  request->type = MS_GET_REQUEST;
+  request->params = (cgiParamObj *) msSmallMalloc(MS_CGI_DEFAULT_MAXPARAMS*sizeof(cgiParamObj));
+  request->numparams = 0;
+  request->type = MS_CGI_REQUEST_GET;
   request->contenttype = NULL;
   request->postrequest = NULL;
   request->httpcookiedata = NULL;
@@ -451,11 +448,13 @@ cgiRequestObj *msAllocCgiObj()
 
 void msFreeCgiObj(cgiRequestObj *request)
 {
-  msFreeCharArray(request->ParamNames, request->NumParams);
-  msFreeCharArray(request->ParamValues, request->NumParams);
-  request->ParamNames = NULL;
-  request->ParamValues = NULL;
-  request->NumParams = 0;
+  int i;
+  for(i=0; i<request->numparams; i++) {
+    msFree(request->params[i].name);
+    msFree(request->params[i].value);
+  }
+  msFree(request->params);
+  request->numparams = 0;
   request->type = -1;
   msFree(request->contenttype);
   msFree(request->postrequest);
