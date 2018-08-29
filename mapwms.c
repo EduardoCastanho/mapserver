@@ -3775,8 +3775,7 @@ int msWMSGetCapabilities(mapObj *map, int nVersion, cgiRequestObj *req, owsReque
 }
 
 /*
- * This function look for params that can be used
- * by mapserv when generating template.
+ * This function look for params that can be used by mapserv when generating template. It simply extends the CGI parameters...
 */
 int msTranslateWMS2Mapserv(const char **names, const char **values, int numentries, char ***translated_names, char ***translated_values, int *translated_numentries)
 {
@@ -3846,7 +3845,6 @@ int msTranslateWMS2Mapserv(const char **names, const char **values, int numentri
       (*translated_numentries)++;
     }
   }
-
 
   return MS_SUCCESS;
 }
