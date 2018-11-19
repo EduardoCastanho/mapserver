@@ -44,7 +44,9 @@ execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig impo
 #  The LOCATION property may not be read from target "_pythonmapscript".  Use
 #  the target name directly with add_custom_command, or use the generator
 #  expression $<TARGET_FILE>, as appropriate.
-cmake_policy(SET CMP0026 OLD)
+if(POLICY  CMP0026)
+    cmake_policy(SET CMP0026 OLD)
+endif()
 
 get_target_property(LOC_MAPSCRIPT_LIB ${SWIG_MODULE_pythonmapscript_REAL_NAME} LOCATION)
 set(mapscript_files ${LOC_MAPSCRIPT_LIB} ${CMAKE_CURRENT_BINARY_DIR}/mapscript.py)
